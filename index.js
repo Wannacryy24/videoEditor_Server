@@ -58,6 +58,14 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// In your server.js - Add CORS for processed files
+app.use('/processed', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+}, express.static(path.join(process.cwd(), 'processed')));
+
+
 // ================== ROUTES ==================
 // Health check
 app.get("/health", (req, res) => {
