@@ -53,9 +53,12 @@ function getVideoMetadata(filePath) {
 // ================== UPLOAD MULTIPLE VIDEOS ==================
 router.post("/uploads", upload.array("files", 10), (req, res) => {
   try {
-    // ✅ Normalize malformed protocols (Render safe)
-    let host = `${req.protocol}://${req.get("host")}`;
-    host = host.replace(/^http(?=[^:])/, "http:").replace(/^https(?=[^:])/, "https:");
+    // ✅ Ensure proper host with colon even if proxy misreports protocol
+    let protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+    if (!protocol.endsWith(":")) protocol += ":";
+
+    const host = `${protocol}//${req.get("host")}`;
+    console.log("🌍 Final resolved host:", host); // <-- keep this for 1 test
 
     const processedDir = path.join(process.cwd(), "processed");
     fs.mkdirSync(processedDir, { recursive: true });
@@ -77,8 +80,7 @@ router.post("/uploads", upload.array("files", 10), (req, res) => {
         "-y",
       ]);
 
-      const audioUrl =
-        ffmpegRes.status === 0 ? `${host}/processed/${audioOutput}` : null;
+      const audioUrl = ffmpegRes.status === 0 ? `${host}/processed/${audioOutput}` : null;
 
       return {
         id: f.filename,
