@@ -1,10 +1,9 @@
-// index.js
 import express from "express";
 import cors from "cors";
 import path, { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
-// Import routes
+// Import middlewares & routes
 import videoRoutes from "./routes/videoRoutes.js";
 import cropRoute from "./routes/crop.js";
 import rotateRoute from "./routes/rotate.js";
@@ -24,11 +23,35 @@ const PORT = process.env.PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// ================== ✅ GLOBAL CORS (must come FIRST) ==================
+// ================== STATIC FILES ==================
+app.use(
+  "/processed",
+  express.static(join(__dirname, "processed"), {
+    setHeaders: (res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    },
+  })
+);
+
+app.use(
+  "/uploads",
+  express.static(join(__dirname, "uploads"), {
+    setHeaders: (res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    },
+  })
+);
+
+// ================== MIDDLEWARE ==================
 app.use(
   cors({
     origin: [
       "https://clipforgee.netlify.app",
+      "http://localhost:3000",
       "http://localhost:5173",
       "http://localhost:5174",
     ],
@@ -36,47 +59,26 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-app.options("*", cors()); // handle all preflight requests
 
-// ================== BASIC MIDDLEWARE ==================
 app.use(express.json());
-
-// ================== STATIC FILES ==================
-app.use(
-  "/uploads",
-  express.static(join(__dirname, "uploads"), {
-    setHeaders: (res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    },
-  })
-);
-
-app.use(
-  "/processed",
-  express.static(join(__dirname, "processed"), {
-    setHeaders: (res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    },
-  })
-);
 
 // ================== ROUTES ==================
 
-// ✅ Root route
+// ✅ Root route for Render health check
 app.get("/", (req, res) => {
   res.send("🎬 ClipForge Backend is Live ✅");
 });
 
-// ✅ Health check route (for Render + frontend)
+// ✅ Health check route
 app.get("/health", (req, res) => {
   res.json({ status: "OK", message: "Server is running" });
 });
 
-// ✅ Unified routes
+// ✅ Mount clean routes
 app.use("/api", videoRoutes);
-app.use("/api", (req, res, next) => videoOperationsRoute(app));
+app.use("/api", (req, res, next) => videoOperationsRoute(app)); // <— SAFE FIX ✅
 
-// ✅ Modular routes
+// ✅ Legacy modular routes
 cropRoute(app);
 rotateRoute(app);
 exportRoute(app);
@@ -88,14 +90,10 @@ thumbnailRoute(app);
 metadataRoute(app);
 splitRoute(app);
 
-// ✅ Debug route (optional, helps with Render troubleshooting)
-app.get("/debug/env", (req, res) => {
-  res.json({
-    protocol: req.protocol,
-    forwardedProto: req.headers["x-forwarded-proto"],
-    host: req.get("host"),
-    resolvedBase: `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`,
-  });
+// ✅ Catch-all (for debugging unexpected full URLs)
+app.use((req, res, next) => {
+  console.log("⚠️ Unhandled path:", req.originalUrl);
+  next();
 });
 
 // ================== START SERVER ==================
