@@ -51,14 +51,15 @@ function getVideoMetadata(filePath) {
 }
 
 // ================== UPLOAD MULTIPLE VIDEOS ==================
+
 router.post("/uploads", upload.array("files", 10), (req, res) => {
   try {
-    // ✅ Ensure proper host with colon even if proxy misreports protocol
-    let protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
-    if (!protocol.endsWith(":")) protocol += ":";
-
-    const host = `${protocol}//${req.get("host")}`;
-    console.log("🌍 Final resolved host:", host); // <-- keep this for 1 test
+    // ✅ FIXED: Simple and correct URL construction
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+    const host = req.get("host");
+    const baseUrl = `${protocol}://${host}`;
+    
+    console.log("🌍 Final resolved baseUrl:", baseUrl);
 
     const processedDir = path.join(process.cwd(), "processed");
     fs.mkdirSync(processedDir, { recursive: true });
@@ -80,12 +81,12 @@ router.post("/uploads", upload.array("files", 10), (req, res) => {
         "-y",
       ]);
 
-      const audioUrl = ffmpegRes.status === 0 ? `${host}/processed/${audioOutput}` : null;
+      const audioUrl = ffmpegRes.status === 0 ? `${baseUrl}/processed/${audioOutput}` : null;
 
       return {
         id: f.filename,
         originalName: f.originalname,
-        url: `${host}/uploads/${f.filename}`,
+        url: `${baseUrl}/uploads/${f.filename}`, // ✅ Now correctly formatted
         audioUrl,
         duration: meta.duration,
         width: meta.width,
