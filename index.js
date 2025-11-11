@@ -74,7 +74,7 @@ app.get("/health", (req, res) => {
 
 // ✅ Unified routes
 app.use("/api", videoRoutes);
-videoOperationsRoute(app);
+app.use("/api", (req, res, next) => videoOperationsRoute(app));
 
 // ✅ Modular routes
 cropRoute(app);
