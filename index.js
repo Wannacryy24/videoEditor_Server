@@ -4,9 +4,8 @@ import cors from "cors";
 import path, { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
-// Import middlewares & routes
-import videoRoutes from "./routes/videoRoutes.js"; // new unified multi-upload + export + jobs
-// import trimRoute from "./routes/trim.js";
+// Import routes
+import videoRoutes from "./routes/videoRoutes.js";
 import cropRoute from "./routes/crop.js";
 import rotateRoute from "./routes/rotate.js";
 import exportRoute from "./routes/export.js";
@@ -16,46 +15,20 @@ import removeAudioRoute from "./routes/removeAudio.js";
 import addAudioRoute from "./routes/addAudio.js";
 import thumbnailRoute from "./routes/thumbnail.js";
 import metadataRoute from "./routes/metadata.js";
-import videoOperationsRoute from "./routes/videoOperations.js"; // ✅ Add this import
+import videoOperationsRoute from "./routes/videoOperations.js";
 import splitRoute from "./routes/split.js";
 
 const app = express();
-const PORT = process.env.PORT || 8080; // ✅ Dynamic port for Render
+const PORT = process.env.PORT || 8080;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// ================== STATIC FILES ==================
-// Serve processed videos
-app.use(
-  "/processed",
-  express.static(join(__dirname, "processed"), {
-    setHeaders: (res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    },
-  })
-);
-
-// Serve raw uploads
-app.use(
-  "/uploads",
-  express.static(join(__dirname, "uploads"), {
-    setHeaders: (res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    },
-  })
-);
-
-// ================== MIDDLEWARE ==================
+// ================== ✅ GLOBAL CORS (must come FIRST) ==================
 app.use(
   cors({
     origin: [
-      "https://clipforgee.netlify.app", 
-      "http://localhost:3000",
+      "https://clipforgee.netlify.app",
       "http://localhost:5173",
       "http://localhost:5174",
     ],
@@ -63,38 +36,47 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+app.options("*", cors()); // handle all preflight requests
+
+// ================== BASIC MIDDLEWARE ==================
 app.use(express.json());
 
-// In your server.js - Add CORS for processed files
+// ================== STATIC FILES ==================
+app.use(
+  "/uploads",
+  express.static(join(__dirname, "uploads"), {
+    setHeaders: (res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    },
+  })
+);
+
 app.use(
   "/processed",
-  (req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    next();
-  },
-  express.static(path.join(process.cwd(), "processed"))
+  express.static(join(__dirname, "processed"), {
+    setHeaders: (res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    },
+  })
 );
 
 // ================== ROUTES ==================
 
-// ✅ Root route for Render health check
+// ✅ Root route
 app.get("/", (req, res) => {
   res.send("🎬 ClipForge Backend is Live ✅");
 });
 
-// Health check
+// ✅ Health check route (for Render + frontend)
 app.get("/health", (req, res) => {
   res.json({ status: "OK", message: "Server is running" });
 });
 
-// New unified video API
+// ✅ Unified routes
 app.use("/api", videoRoutes);
-
 videoOperationsRoute(app);
 
-// Legacy modular routes (refactored to import uploadMiddleware directly)
-// trimRoute(app);
+// ✅ Modular routes
 cropRoute(app);
 rotateRoute(app);
 exportRoute(app);
@@ -106,7 +88,17 @@ thumbnailRoute(app);
 metadataRoute(app);
 splitRoute(app);
 
+// ✅ Debug route (optional, helps with Render troubleshooting)
+app.get("/debug/env", (req, res) => {
+  res.json({
+    protocol: req.protocol,
+    forwardedProto: req.headers["x-forwarded-proto"],
+    host: req.get("host"),
+    resolvedBase: `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`,
+  });
+});
+
 // ================== START SERVER ==================
 app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`🚀 Server running at port ${PORT}`);
 });
