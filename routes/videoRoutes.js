@@ -9,7 +9,7 @@ import ffmpegPath from "@ffmpeg-installer/ffmpeg";
 
 const router = express.Router();
 
-// ================== HELPER: GET METADATA ==================
+/* ------------------ HELPER: GET METADATA ------------------ */
 function getVideoMetadata(filePath) {
   try {
     const probe = spawnSync(ffprobePath.path, [
@@ -26,23 +26,16 @@ function getVideoMetadata(filePath) {
     }
 
     const info = JSON.parse(probe.stdout.toString());
-    let duration = 0;
+    const videoStream = info.streams?.find((s) => s.codec_type === "video");
+    const audioStream = info.streams?.find((s) => s.codec_type === "audio");
 
-    if (info.format?.duration) {
-      duration = parseFloat(info.format.duration);
-    } else {
-      const vStream = (info.streams || []).find((s) => s.codec_type === "video");
-      if (vStream?.duration) {
-        duration = parseFloat(vStream.duration);
-      }
-    }
-
+    const duration = parseFloat(info.format?.duration || videoStream?.duration || 0);
     return {
       duration: isNaN(duration) ? 0 : duration,
-      width: info.streams?.find((s) => s.codec_type === "video")?.width || null,
-      height: info.streams?.find((s) => s.codec_type === "video")?.height || null,
-      fps: info.streams?.find((s) => s.codec_type === "video")?.avg_frame_rate || null,
-      hasAudio: !!info.streams?.find((s) => s.codec_type === "audio"),
+      width: videoStream?.width || null,
+      height: videoStream?.height || null,
+      fps: videoStream?.avg_frame_rate || null,
+      hasAudio: !!audioStream,
     };
   } catch (err) {
     console.error("Metadata parse error:", err);
@@ -50,30 +43,22 @@ function getVideoMetadata(filePath) {
   }
 }
 
-// ================== UPLOAD MULTIPLE VIDEOS ==================
-
-// ================== UPLOAD MULTIPLE VIDEOS ==================
+/* ------------------ UPLOAD MULTIPLE VIDEOS ------------------ */
 router.post("/uploads", upload.array("files", 10), (req, res) => {
   try {
-    // ✅ DEBUG: Check what values we're getting
-    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+    // ✅ Always detect correct protocol, even behind Render proxy
+    const protocol = req.headers["x-forwarded-proto"] || "https";
     const host = req.get("host");
-    
-    console.log("🔍 Protocol:", protocol);
-    console.log("🔍 Host:", host);
-    console.log("🔍 Headers:", req.headers);
 
-    // ✅ FIXED: Force proper URL format
-    const baseUrl = `https://${host}`; // Force https since you're on Render
-    
-    console.log("🌍 Final baseUrl:", baseUrl);
+    // ✅ Build correct base URL (fixes https// bug)
+    const baseUrl = `${protocol}://${host}`;
+    console.log("🌍 Using baseUrl:", baseUrl);
 
     const processedDir = path.join(process.cwd(), "processed");
     fs.mkdirSync(processedDir, { recursive: true });
 
     const items = req.files.map((f) => {
       const meta = getVideoMetadata(f.path);
-
       const audioOutput = `${f.filename}.wav`;
       const audioOutPath = path.join(processedDir, audioOutput);
 
@@ -89,15 +74,14 @@ router.post("/uploads", upload.array("files", 10), (req, res) => {
       ]);
 
       const audioUrl = ffmpegRes.status === 0 ? `${baseUrl}/processed/${audioOutput}` : null;
+      const videoUrl = `${baseUrl}/uploads/${f.filename}`;
 
-      // ✅ DEBUG: Check the final URL before sending
-      const finalUrl = `${baseUrl}/uploads/${f.filename}`;
-      console.log("🔍 Final URL for file:", finalUrl);
+      console.log("✅ Video uploaded:", videoUrl);
 
       return {
         id: f.filename,
         originalName: f.originalname,
-        url: finalUrl,
+        url: videoUrl,
         audioUrl,
         duration: meta.duration,
         width: meta.width,
@@ -108,9 +92,6 @@ router.post("/uploads", upload.array("files", 10), (req, res) => {
       };
     });
 
-    // ✅ DEBUG: Check the entire response
-    console.log("🔍 Sending response with items:", JSON.stringify(items, null, 2));
-
     res.json({ items });
   } catch (err) {
     console.error("Upload failed:", err);
@@ -118,13 +99,13 @@ router.post("/uploads", upload.array("files", 10), (req, res) => {
   }
 });
 
-// ================== EXPORT PROJECT (stub for now) ==================
+/* ------------------ EXPORT PROJECT (stub) ------------------ */
 router.post("/export", (req, res) => {
   const jobId = Date.now().toString();
   res.json({ jobId, status: "processing" });
 });
 
-// ================== GET JOB STATUS (stub) ==================
+/* ------------------ JOB STATUS (stub) ------------------ */
 router.get("/jobs/:id", (req, res) => {
   const { id } = req.params;
   res.json({ id, status: "done", url: `/processed/final_${id}.mp4` });
