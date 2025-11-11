@@ -20,7 +20,7 @@ import videoOperationsRoute from "./routes/videoOperations.js"; // ✅ Add this 
 import splitRoute from "./routes/split.js";
 
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080; // ✅ Dynamic port for Render
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,22 +51,38 @@ app.use(
 );
 
 // ================== MIDDLEWARE ==================
-app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"],
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+app.use(
+  cors({
+    origin: [
+      "https://clipforgee.netlify.app", 
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ],
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(express.json());
 
 // In your server.js - Add CORS for processed files
-app.use('/processed', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  next();
-}, express.static(path.join(process.cwd(), 'processed')));
-
+app.use(
+  "/processed",
+  (req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+  },
+  express.static(path.join(process.cwd(), "processed"))
+);
 
 // ================== ROUTES ==================
+
+// ✅ Root route for Render health check
+app.get("/", (req, res) => {
+  res.send("🎬 ClipForge Backend is Live ✅");
+});
+
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "OK", message: "Server is running" });
@@ -74,7 +90,6 @@ app.get("/health", (req, res) => {
 
 // New unified video API
 app.use("/api", videoRoutes);
-
 
 videoOperationsRoute(app);
 
@@ -90,6 +105,7 @@ addAudioRoute(app);
 thumbnailRoute(app);
 metadataRoute(app);
 splitRoute(app);
+
 // ================== START SERVER ==================
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
