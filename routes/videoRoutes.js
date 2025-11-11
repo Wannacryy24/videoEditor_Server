@@ -52,14 +52,21 @@ function getVideoMetadata(filePath) {
 
 // ================== UPLOAD MULTIPLE VIDEOS ==================
 
+// ================== UPLOAD MULTIPLE VIDEOS ==================
 router.post("/uploads", upload.array("files", 10), (req, res) => {
   try {
-    // ✅ FIXED: Simple and correct URL construction
+    // ✅ DEBUG: Check what values we're getting
     const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
     const host = req.get("host");
-    const baseUrl = `${protocol}://${host}`;
     
-    console.log("🌍 Final resolved baseUrl:", baseUrl);
+    console.log("🔍 Protocol:", protocol);
+    console.log("🔍 Host:", host);
+    console.log("🔍 Headers:", req.headers);
+
+    // ✅ FIXED: Force proper URL format
+    const baseUrl = `https://${host}`; // Force https since you're on Render
+    
+    console.log("🌍 Final baseUrl:", baseUrl);
 
     const processedDir = path.join(process.cwd(), "processed");
     fs.mkdirSync(processedDir, { recursive: true });
@@ -83,10 +90,14 @@ router.post("/uploads", upload.array("files", 10), (req, res) => {
 
       const audioUrl = ffmpegRes.status === 0 ? `${baseUrl}/processed/${audioOutput}` : null;
 
+      // ✅ DEBUG: Check the final URL before sending
+      const finalUrl = `${baseUrl}/uploads/${f.filename}`;
+      console.log("🔍 Final URL for file:", finalUrl);
+
       return {
         id: f.filename,
         originalName: f.originalname,
-        url: `${baseUrl}/uploads/${f.filename}`, // ✅ Now correctly formatted
+        url: finalUrl,
         audioUrl,
         duration: meta.duration,
         width: meta.width,
@@ -96,6 +107,9 @@ router.post("/uploads", upload.array("files", 10), (req, res) => {
         status: "uploaded",
       };
     });
+
+    // ✅ DEBUG: Check the entire response
+    console.log("🔍 Sending response with items:", JSON.stringify(items, null, 2));
 
     res.json({ items });
   } catch (err) {
