@@ -93,7 +93,7 @@ app.get("/health", (req, res) => {
 
 // ✅ Mount clean routes
 app.use("/api", videoRoutes);
-app.use("/api", (req, res, next) => videoOperationsRoute(app)); // <— SAFE FIX ✅
+videoOperationsRoute(app);
 
 // ✅ Legacy modular routes
 cropRoute(app);
