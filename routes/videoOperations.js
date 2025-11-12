@@ -13,50 +13,50 @@ fs.mkdirSync(LATEST_DIR, { recursive: true });
 
 export default function videoOperationsRoute(app) {
   // Trim endpoint - saves to latest folder
-  app.post("/trim", (req, res) => {
-    const { filename, start, end } = req.body;
+  // app.post("/trim", (req, res) => {
+  //   const { filename, start, end } = req.body;
 
-    if (!filename || start == null || end == null) {
-      return res.status(400).json({ error: "Missing filename, start, or end" });
-    }
+  //   if (!filename || start == null || end == null) {
+  //     return res.status(400).json({ error: "Missing filename, start, or end" });
+  //   }
 
-    // ✅ Check both uploads and latest folders
-    let inputPath = join(process.cwd(), "uploads", filename);
-    if (!fs.existsSync(inputPath)) {
-      inputPath = join(process.cwd(), "processed", "latest", filename);
-      if (!fs.existsSync(inputPath)) {
-        return res.status(404).json({ error: "File not found" });
-      }
-    }
+  //   // ✅ Check both uploads and latest folders
+  //   let inputPath = join(process.cwd(), "uploads", filename);
+  //   if (!fs.existsSync(inputPath)) {
+  //     inputPath = join(process.cwd(), "processed", "latest", filename);
+  //     if (!fs.existsSync(inputPath)) {
+  //       return res.status(404).json({ error: "File not found" });
+  //     }
+  //   }
 
-    const outFile = `${path.parse(filename).name}_latest.mp4`;
-    const outPath = join(LATEST_DIR, outFile);
+  //   const outFile = `${path.parse(filename).name}_latest.mp4`;
+  //   const outPath = join(LATEST_DIR, outFile);
 
-    const args = [
-      "-i", inputPath,
-      "-ss", start.toString(),
-      "-to", end.toString(),
-      "-c", "copy",
-      outPath,
-    ];
+  //   const args = [
+  //     "-i", inputPath,
+  //     "-ss", start.toString(),
+  //     "-to", end.toString(),
+  //     "-c", "copy",
+  //     outPath,
+  //   ];
 
-    const ffmpeg = spawn(ffmpegPath.path, args);
+  //   const ffmpeg = spawn(ffmpegPath.path, args);
 
-    ffmpeg.stderr.on("data", (d) => console.log("FFmpeg:", d.toString()));
+  //   ffmpeg.stderr.on("data", (d) => console.log("FFmpeg:", d.toString()));
 
-    ffmpeg.on("close", (code) => {
-      if (code !== 0) {
-        return res.status(500).json({ error: "FFmpeg trim failed" });
-      }
+  //   ffmpeg.on("close", (code) => {
+  //     if (code !== 0) {
+  //       return res.status(500).json({ error: "FFmpeg trim failed" });
+  //     }
 
-      res.json({
-        trimmedUrl: `/processed/latest/${outFile}`,
-        filename: outFile,
-        start,
-        end,
-      });
-    });
-  });
+  //     res.json({
+  //       trimmedUrl: `/processed/latest/${outFile}`,
+  //       filename: outFile,
+  //       start,
+  //       end,
+  //     });
+  //   });
+  // });
 
   // Get the current latest video
   app.get("/latest/:filename", (req, res) => {
