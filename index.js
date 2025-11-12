@@ -47,20 +47,37 @@ app.use(
 );
 
 // ================== MIDDLEWARE ==================
+const allowedOrigins = [
+  "https://clipforgee.netlify.app",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+];
+
+// ✅ More robust CORS middleware
 app.use(
   cors({
-    origin: [
-      "https://clipforgee.netlify.app",
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "http://localhost:5174",
-    ],
-    methods: ["GET", "POST", "OPTIONS"],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (e.g., curl, Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("CORS not allowed for this origin: " + origin));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
+// ✅ Handle preflight OPTIONS globally
+app.options("*", cors());
+
 app.use(express.json());
+
+app.use((req, res, next) => {
+  console.log("🌍 Request Origin:", req.headers.origin);
+  next();
+});
 
 // ================== ROUTES ==================
 
